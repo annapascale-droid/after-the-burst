@@ -1,109 +1,144 @@
 import SwiftUI
 
 struct ReflectionFormView: View {
+    
     @Environment(\.dismiss) private var dismiss
-
+    @StateObject var viewModel: RegisterReleaseViewModel
+    
+    // MARK: - Init
+    
+    init(viewModel: RegisterReleaseViewModel = RegisterReleaseViewModel()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
+    
+    // MARK: - Form State
+    
     @State private var bodyNotice: String = ""
     @State private var connectedThoughts: String = ""
     @State private var trigger: String = ""
-    enum ControlState: String, CaseIterable { case inControl = "In Control", outOfControl = "Out Of Control" }
+    
+    enum ControlState: String, CaseIterable {
+        case inControl = "In Control"
+        case outOfControl = "Out Of Control"
+    }
+    
     @State private var controlState: ControlState? = nil
     @State private var underlyingFeelings: String = ""
-
+    @State private var navigateToBurstAnalysis: Bool = false
+    
+    // MARK: - Body
+    
     var body: some View {
         NavigationStack {
             ZStack {
-                // Subtle side bands with light blue
-                Color.white.ignoresSafeArea()
-                HStack(spacing: 0) {
-                    Color(red: 0.90, green: 0.96, blue: 0.98)
-                    Color.white
-                    Color(red: 0.90, green: 0.96, blue: 0.98)
-                }
-                .ignoresSafeArea()
-                .opacity(0.5)
-
+                
+                Color.white
+                    .ignoresSafeArea()
+                
                 VStack(spacing: 0) {
+                    
+                    NavigationLink(destination: BurstAnalysisView(), isActive: $navigateToBurstAnalysis) { EmptyView() }
+                    
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
-                            formSection(title: "Where did I notice the anger in my body?", text: $bodyNotice)
-                            formSection(title: "What thoughts were connected to my anger?", text: $connectedThoughts)
-                            formSection(title: "What triggered my episode of anger?", text: $trigger)
-
+                            Spacer()
+                            
+                            formSection(
+                                title: "Where did I notice the anger in my body?",
+                                text: $bodyNotice
+                            )
+                            
+                            formSection(
+                                title: "What thoughts were connected to my anger?",
+                                text: $connectedThoughts
+                            )
+                            
+                            formSection(
+                                title: "What triggered my episode of anger?",
+                                text: $trigger
+                            )
+                            
                             VStack(alignment: .leading, spacing: 12) {
+                                
                                 Text("Did it make me feel out of control or in control?")
                                     .font(.headline)
-                                    .foregroundStyle(.primary)
-
+                                
                                 VStack(spacing: 12) {
-                                    radioRow(title: ControlState.inControl.rawValue, isSelected: controlState == .inControl) {
+                                    
+                                    radioRow(
+                                        title: ControlState.inControl.rawValue,
+                                        isSelected: controlState == .inControl
+                                    ) {
                                         controlState = .inControl
                                     }
-                                    radioRow(title: ControlState.outOfControl.rawValue, isSelected: controlState == .outOfControl) {
+                                    
+                                    radioRow(
+                                        title: ControlState.outOfControl.rawValue,
+                                        isSelected: controlState == .outOfControl
+                                    ) {
                                         controlState = .outOfControl
                                     }
                                 }
                             }
-
-                            formSection(title: "What underlying feelings might have fueled my anger?", text: $underlyingFeelings)
+                            
+                            formSection(
+                                title: "What underlying feelings might have fueled my anger?",
+                                text: $underlyingFeelings
+                            )
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(Color.clear)
                     }
-
-                    // Bottom bar button
-                    VStack(spacing: 0) {
-                        Divider().opacity(0)
-                        Button(action: { dismiss() }) {
-                            Text("Done")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        }
-                        .background(Color(red: 0.29, green: 0.13, blue: 0.23)) // deep purple
-                        .clipShape(Capsule())
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            // Background to lift the button from bottom
-                            Color.white.opacity(0.001)
-                                .ignoresSafeArea(edges: .bottom)
-                        )
+                    
+                    // MARK: - Bottom Button
+                    
+                    Button {
+                        viewModel.release()
+                    } label: {
+                        Text(viewModel.isLoading ? "Saving..." : "Done")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
                     }
+                    .background(Color(red: 0.29, green: 0.13, blue: 0.23))
+                    .clipShape(Capsule())
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
+            .presentationDetents([.fraction(0.9), .large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(24)
+            .fullScreenCover(isPresented: $viewModel.isReleased) {
+                NavigationStack {
+                    CompletionView {
+                        viewModel.reset()
+                        dismiss()
+                        navigateToBurstAnalysis = true
                     }
-                    .tint(.secondary)
                 }
             }
         }
     }
-
+    
     // MARK: - Subviews
-
+    
     @ViewBuilder
     private func formSection(title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.primary)
+            
             RoundedTextArea(text: text)
         }
     }
-
+    
     @ViewBuilder
     private func radioRow(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
                 Text(title)
-                    .foregroundStyle(.primary)
                 Spacer()
                 ZStack {
                     Circle()
@@ -126,21 +161,24 @@ struct ReflectionFormView: View {
     }
 }
 
-private struct RoundedTextArea: View {
-    @Binding var text: String
-    @State private var isEditing: Bool = false
+// MARK: - Rounded Text Area
 
+private struct RoundedTextArea: View {
+    
+    @Binding var text: String
+    
     var body: some View {
         ZStack(alignment: .topLeading) {
+            
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(red: 0.90, green: 0.96, blue: 0.98))
+            
             TextEditor(text: $text)
                 .scrollContentBackground(.hidden)
                 .padding(10)
                 .frame(minHeight: 110)
                 .background(Color.clear)
-                .onTapGesture { isEditing = true }
-                .onDisappear { isEditing = false }
+            
             if text.isEmpty {
                 Text("Write here...")
                     .foregroundColor(Color.gray)
